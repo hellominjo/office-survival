@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오피스 생존기 : AI편 (라이트)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@500;800&family=Noto+Sans+KR:wght@400;500;800&display=swap">
+<style>
+/* VOICE: 사무실 블랙코미디, 짧고 건조한 말투
+   IDEA: 월요일을 버티게 해주는 '생존제' 약 상자 — 칸마다 시계, 얼굴, 수치
+   PICTURE: 큰 시계 + 표정이 바뀌는 직장인 + 메신저 카드
+   COLOUR and TYPE: 흰 바탕, 에메랄드 시계칸, 연분홍 얼굴칸, 검정 선 / Schibsted Grotesk 800 + Noto Sans KR
+   LAYOUT: 640px 상자 하나를 직사각형 칸으로 나눔, 폰에서는 화면 꽉 채움 */
+:root{color-scheme:light;--bg:#fff3f6;--box:#fff;--ink:#1d2320;--mut:#5f6663;--line:#e4dcdf;--em:#00a86b;--pk:#ffe3ea;--soft:#f6f5f3}
+:root,:root[data-theme=dark],:root[data-theme=light]{color-scheme:light}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Noto Sans KR","Schibsted Grotesk",system-ui,sans-serif;overflow-x:clip}
+.num{font-family:"Schibsted Grotesk","Noto Sans KR",sans-serif;font-variant-numeric:tabular-nums}
+.box{max-width:640px;margin:clamp(0px,3vw,32px) auto;background:var(--box);border:2px solid var(--line)}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:12px 16px;border-bottom:2px solid var(--line)}
+header h1{margin:0;font-size:16px;font-weight:800}
+header span{font-size:13px;color:var(--mut)}
+.hud{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);border-bottom:2px solid var(--line)}
+.clock{background:var(--em);color:#06140d;padding:16px;border-right:2px solid var(--line);display:flex;flex-direction:column;justify-content:space-between;gap:10px}
+.clock.ot{background:#0b0b0b;color:#ffd6e0}
+.clock small{font-size:13px;font-weight:500}
+.clock b{display:block;font-size:clamp(44px,13vw,64px);line-height:1;font-weight:800;letter-spacing:-.02em}
+.track{height:10px;background:rgba(0,0,0,.18);position:relative}
+.ot .track{background:rgba(255,214,224,.25)}
+.track i{position:absolute;inset:0 auto 0 0;background:currentColor;transition:width .5s}
+.face{background:var(--cb,#dff1e8);display:grid;place-items:center;padding:6px}
+.face svg{width:100%;max-width:150px;height:auto;display:block}
+.meters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:2px solid var(--line)}
+.meter{padding:10px 12px;border-right:2px solid var(--line)}
+.meter:last-child{border-right:0}
+.meter div{display:flex;justify-content:space-between;font-size:13px;gap:4px}
+.meter div b{font-weight:800}
+.bar{height:8px;background:var(--soft);margin-top:6px;border:1px solid var(--line)}
+.bar i{display:block;height:100%;background:var(--ink);transition:width .5s}
+.bar i.low{background:#e0315a}
+.ai{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;border-bottom:2px solid var(--line);font-size:13px}
+.pips{display:flex;gap:5px;flex-wrap:wrap}
+.pips i{width:18px;height:18px;border:2px solid var(--ink);background:var(--em)}
+.pips i.off{background:transparent;opacity:.35}
+main{padding:20px 16px 24px}
+.card{animation:up .35s ease-out}
+@keyframes up{from{opacity:0;transform:translateY(10px)}}
+@media(prefers-reduced-motion:reduce){.card{animation:none}.track i,.bar i{transition:none}}
+.from{font-size:13px;color:var(--mut);display:flex;gap:8px;flex-wrap:wrap}
+.from b{background:var(--ink);color:var(--box);padding:1px 8px;font-weight:500}
+h2{font-size:22px;line-height:1.3;margin:8px 0 8px;text-wrap:balance}
+.body{margin:0 0 16px}
+.note{background:var(--soft);border-left:4px solid var(--em);padding:8px 12px;font-size:13px;margin:0 0 14px}
+.ch{display:grid;gap:10px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--em);outline-offset:2px}
+.opt{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;min-height:56px;padding:12px 14px;text-align:start;background:var(--box);border:2px solid var(--line);font-weight:500}
+.opt:hover:not(:disabled){background:var(--pk);color:#0b0b0b}
+.opt:disabled{opacity:.4;cursor:not-allowed}
+.tags{display:flex;gap:4px;flex:none;flex-wrap:wrap;justify-content:flex-end}
+.tag{font-size:13px;padding:1px 7px;border:1.5px solid currentColor;white-space:nowrap;font-weight:500}
+.tag.ai{background:var(--em);color:#06140d;border-color:var(--em)}
+.res{background:var(--pk);color:#0b0b0b;padding:16px;border:2px solid var(--line)}
+.res p{margin:0 0 12px;font-size:17px}
+.deltas{display:flex;flex-wrap:wrap;gap:6px}
+.d{font-size:13px;padding:2px 8px;border:1.5px solid #0b0b0b;white-space:nowrap}
+.d.up{background:#0b0b0b;color:#ffd6e0}
+.go{display:block;width:100%;min-height:52px;margin-top:14px;background:var(--em);color:#06140d;border:2px solid var(--line);font-weight:800;font-size:17px}
+.go.alt{background:var(--box);color:var(--ink)}
+.rules{margin:0 0 18px;padding:0;list-style:none;display:grid;gap:8px}
+.rules li{padding:8px 12px;background:var(--soft);font-size:15px}
+.score{background:var(--em);color:#06140d;margin:-20px -16px 0;padding:22px 16px;border-bottom:2px solid var(--line)}
+.score small{font-size:15px;font-weight:500}
+.score b{display:block;font-size:clamp(56px,18vw,96px);line-height:1;font-weight:800;letter-spacing:-.03em}
+.score b span{font-size:.35em}
+.score p{margin:8px 0 0;font-weight:800;font-size:17px}
+.score.bad{background:#0b0b0b;color:#ffd6e0}
+.meme{background:var(--pk);color:#0b0b0b;margin:0 -16px;padding:18px 16px;border-bottom:2px solid var(--line);display:flex;gap:14px;align-items:center}
+.meme .g{flex:none;width:64px;height:64px;border:3px solid #0b0b0b;display:grid;place-items:center;font:800 36px "Schibsted Grotesk",sans-serif}
+.meme h3{margin:0;font-size:22px;line-height:1.2}
+.meme p{margin:2px 0 0;font-size:15px}
+h4{font-size:16px;margin:20px 0 10px}
+.stat{display:grid;grid-template-columns:7.5em minmax(0,1fr) 2.5em;gap:10px;align-items:center;font-size:15px;margin-bottom:8px}
+.stat .bar{margin:0;height:12px}
+.stat .bar i{background:var(--em)}
+.stat span:last-child{text-align:right}
+.tips{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.tips li{border:2px solid var(--line);padding:10px 12px;font-size:15px}
+.tips li b{display:block;font-size:13px;color:var(--mut);font-weight:500}
+.log{margin:0;padding:0;list-style:none;font-size:13px;color:var(--mut)}
+.log li{padding:5px 0;border-bottom:1px dashed var(--line);display:flex;gap:10px}
+.log li span:first-child{flex:none;width:3.2em;color:var(--ink);font-weight:800}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.face{position:relative}
+.nm{font-size:13px;font-weight:800;color:#0b0b0b;background:#fff;border:2px solid #0b0b0b;padding:0 8px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ov{position:fixed;inset:0;z-index:10;background:rgba(4,20,13,.55);display:grid;place-items:center;padding:16px;animation:fd .2s ease-out}
+@keyframes fd{from{opacity:0}}
+.dlg{width:100%;max-width:400px;max-height:calc(100dvh - 32px);overflow:auto;background:var(--box);color:var(--ink);border:2px solid var(--line);box-shadow:6px 6px 0 #0b0b0b}
+.dh{display:flex;justify-content:space-between;align-items:center;padding:8px 8px 8px 16px;border-bottom:2px solid var(--line)}
+.dh b{font-size:16px}
+.x{width:44px;height:44px;background:none;border:0;font-size:26px;line-height:1}
+.db{padding:16px}
+.chars{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.chr{display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 2px 8px;border:2px solid var(--line);background:var(--box);font-size:13px;font-weight:500;line-height:1.25;text-align:center;word-break:keep-all}
+.chr svg{width:100%;max-width:68px;height:auto;background:var(--cb,#dff1e8)}
+.gh{margin:0 0 6px;font-size:13px;font-weight:800;color:var(--mut)}
+.chr[aria-pressed=true]{background:var(--em);color:#06140d;border-color:#0b0b0b;font-weight:800;box-shadow:3px 3px 0 #0b0b0b;}
+.chr:hover:not([aria-pressed=true]){background:var(--soft)}
+.cinfo{margin:0 0 14px;font-size:15px;font-weight:500;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 10px;min-height:1.6em}
+.lvbox{margin:22px 0 14px}
+.lvrow{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:0 8px}
+.lvrow .f{margin:0}
+.lvt{font-size:13px;color:var(--mut)}
+.lvt b{font-weight:800;color:var(--em)}
+#lvr{-webkit-appearance:none;appearance:none;width:100%;height:24px;background:transparent;margin:2px 0 0;cursor:pointer}
+#lvr::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--em) var(--p,50%),var(--soft) var(--p,50%))}
+#lvr::-moz-range-track{height:6px;border-radius:3px;background:linear-gradient(90deg,var(--em) var(--p,50%),var(--soft) var(--p,50%))}
+#lvr::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;margin-top:-7px;border-radius:50%;background:#fff;border:2px solid #0b0b0b}
+#lvr::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid #0b0b0b}
+#lvr:focus-visible{outline:3px solid var(--em);outline-offset:4px}
+.ticks{display:flex;justify-content:space-between;font-size:13px;color:var(--mut);line-height:1.2}
+.ticks .on{color:var(--em);font-weight:800}
+.lvh{margin:6px 0 0;font-size:13px;color:var(--mut)}
+.go:disabled{background:var(--soft);color:var(--mut);cursor:not-allowed}
+p.f{display:block;font-size:13px;font-weight:800;margin:0 0 6px}
+.vs{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;align-items:stretch}
+.vs>div{border:2px solid var(--line);padding:10px 12px}
+.vs small{display:block;font-size:13px;color:var(--mut)}
+.vs b{display:block;font-size:28px;line-height:1.1;font-weight:800}
+.vs span{font-size:13px}
+.vs .real{background:var(--em);color:#06140d}.vs .real small{color:#06140d}
+.vs i{align-self:center;font-style:normal;font-weight:800}
+.verdict{margin:10px 0 0;font-size:15px}
+.verdict b{font-weight:800}
+.cinfo small{font-size:13px;font-weight:500;color:var(--mut);white-space:nowrap}
+label.f{display:block;font-size:13px;font-weight:800;margin:0 0 6px}
+.inp{width:100%;font:inherit;font-size:16px;min-height:48px;padding:10px 12px;border:2px solid var(--line);background:var(--box);color:var(--ink)}
+.inp:focus-visible{outline:3px solid var(--em);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.ov{animation:none}}
+footer{padding:10px 16px;border-top:2px solid var(--line);font-size:13px;color:var(--mut)}
+@media(max-width:600px){.box{margin:0;border-left:0;border-right:0}.meter{padding:8px}.meter div{flex-direction:column;gap:0}}
+
+.box{border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(120,60,80,.08)}
+.clock{background:#dff6ec;color:#0b6b47}.track{background:rgba(11,107,71,.15)}
+.clock.ot{background:#ffe3ea;color:#b0274a}.ot .track{background:rgba(176,39,74,.15)}
+.bar{border:0;border-radius:4px;background:#efecea}.bar i{background:var(--em);border-radius:4px}
+.pips i{border:0;border-radius:4px}.pips i.off{background:#efecea;opacity:1}
+.from b{background:#dff6ec;color:#0b6b47;border-radius:20px;padding:1px 10px}
+.opt{border-radius:12px}.opt:hover:not(:disabled){background:var(--pk);color:var(--ink)}
+.tag{border-radius:20px;border-width:1px;color:var(--mut)}.tag.ai{color:#06140d}
+.res{background:var(--pk);color:var(--ink);border:0;border-radius:12px}
+.d{border:1px solid #d7c9cd;border-radius:20px;color:var(--ink)}.d.up{background:#dff6ec;color:#0b6b47;border-color:#bfe8d6}
+.go{border:0;border-radius:12px;background:#009a62;color:#fff}.go.alt{background:var(--box);color:var(--ink)}.go.alt{border:2px solid var(--line)}
+.score{background:#dff6ec;color:#0b6b47}.score.bad{background:#ffe3ea;color:#b0274a}
+.meme{color:var(--ink)}.meme .g{border:3px solid currentColor;border-radius:12px}
+.nm{border:1px solid var(--line);border-radius:20px;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.ov{background:rgba(255,243,246,.7)}
+.dlg{border:1px solid var(--line);border-radius:18px;box-shadow:0 16px 40px rgba(120,60,80,.16)}
+.chr{border-radius:12px;overflow:hidden}.chr[aria-pressed=true]{background:#009a62;color:#fff;border-color:#009a62;box-shadow:0 0 0 1px #009a62}
+.ov .go,.ov .go:hover{background:#ff9450;color:#fff;box-shadow:none;text-shadow:none}
+.inp{border-radius:10px}
+.vs>div{border-radius:12px}.tips li{border-radius:12px}
+#lvr::-webkit-slider-thumb{border-color:var(--em)}#lvr::-moz-range-thumb{border-color:var(--em)}
+footer .fl{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+footer a{color:#8f9592;text-decoration:none;font-weight:400;padding:6px 0}
+footer a:hover{text-decoration:underline}
+footer .cp{margin:2px 0 0;font-size:13px;color:#a7acaa}
+footer .fl span{color:#c4c8c6}
+body{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh}
+.box{flex:1;display:flex;flex-direction:column;width:100%;margin-bottom:0!important;border-bottom-left-radius:0;border-bottom-right-radius:0;border-bottom:0}
+.box>main{flex:1}
+.page{padding:22px 16px 28px}
+.page h2{font-size:24px;margin:0 0 8px}
+.page h3{font-size:16px;margin:0 0 6px}
+.page p,.page li{font-size:15px;color:var(--ink)}
+.page .lead{color:var(--mut);margin:0 0 18px}
+.page ul{padding-left:18px;margin:0}.page li{margin-bottom:6px}
+.page a{color:#00895a}
+.sec{border-top:1px solid var(--line);padding-top:16px;margin-top:16px}
+.sec p{margin:0 0 8px}
+.draft{display:inline-block;font-size:13px!important;color:#b0274a!important;background:#ffe3ea;border-radius:20px;padding:2px 10px;margin:0 0 10px}
+.ok{font-size:13px!important;color:#00895a!important;margin:6px 0 0}
+#cform .inp{margin-bottom:4px}#cform textarea{resize:vertical;line-height:1.5}
+#cform label.f{margin-top:12px}
+select.inp{appearance:auto}
+.err{font-size:13px!important;color:#b0274a!important;margin:0 0 4px;min-height:1.2em}
+.cout{margin-top:18px;background:var(--soft);border-radius:12px;padding:14px}
+.cout pre{white-space:pre-wrap;font:inherit;font-size:14px;background:var(--box);border:1px solid var(--line);border-radius:10px;padding:10px;margin:8px 0 0}
+#back{font-size:13px;color:#00895a;text-decoration:none;font-weight:500}
+footer a[aria-current=page]{color:#00895a}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="box">
+  <header><h1>오피스 생존기 : AI편</h1><span id="step">출근 전</span><a href="#" id="back" hidden>게임으로 돌아가기</a></header>
+  <section class="hud">
+    <div class="clock" id="clock"><small id="cday">월요일 · 퇴근까지 9시간</small><b class="num" id="ctime">09:00</b><div class="track"><i id="cbar" style="width:0"></i></div></div>
+    <div class="face" id="face"></div>
+  </section>
+  <section class="meters" id="meters"></section>
+  <section class="ai"><span>AI 크레딧 · 쓰면 빠르지만 아껴야 한다</span><div class="pips" id="pips"></div></section>
+  <main id="main"></main>
+  <section class="page" id="pg-privacy" hidden aria-labelledby="pv-t">
+    <p class="draft">초안 · 정식 게시 전에 법률 검토가 필요합니다</p>
+    <h2 id="pv-t">개인정보처리방침</h2>
+    <p class="lead">ZEROFOUND(이하 '회사')는 '오피스 생존기 : AI편'(이하 '서비스')을 이용하는 분의 개인정보를 소중히 다룹니다. 이 서비스는 회원가입 없이 이용할 수 있고, 게임 기록을 회사 서버에 저장하지 않습니다.</p>
+    <div class="sec"><h3>1. 처리하는 정보</h3>
+      <ul><li><b>사원증 이름과 고른 캐릭터</b>: 다음 판에 다시 불러오기 위해 이용자의 브라우저(기기)에만 저장합니다. 회사로 전송되지 않습니다.</li>
+      <li><b>게임 진행과 결과</b>: 화면에서만 계산하고 저장하지 않습니다. '결과 복사'를 누르면 이용자의 클립보드에만 복사됩니다.</li>
+      <li><b>서비스 문의</b>: 이용자가 직접 보내 주신 이메일 주소와 문의 내용을 답변 목적으로만 처리합니다.</li></ul></div>
+    <div class="sec"><h3>2. 이용 목적</h3><p>캐릭터와 이름 불러오기 같은 편의 기능 제공, 문의 응대 외의 목적으로 이용하지 않습니다.</p></div>
+    <div class="sec"><h3>3. 보관과 파기</h3><p>브라우저에 저장된 정보는 아래 버튼을 누르거나 브라우저의 사이트 데이터를 지우면 바로 삭제됩니다. 문의 내용은 답변이 끝나면 지체 없이 파기합니다.</p>
+      <button class="go alt" type="button" id="wipe">내 기기에 저장된 정보 지우기</button><p class="ok" id="wipe-ok" role="status"></p></div>
+    <div class="sec"><h3>4. 제3자 제공과 외부 서비스</h3><p>개인정보를 제3자에게 제공하지 않습니다. 다만 화면 글꼴을 불러오는 과정에서 Google Fonts에, 페이지를 제공하는 과정에서 호스팅 사업자에 접속 기록(IP 주소, 브라우저 정보 등)이 전달될 수 있습니다.</p></div>
+    <div class="sec"><h3>5. 쿠키</h3><p>쿠키를 사용하지 않습니다. 위 1번의 브라우저 저장 기능만 사용합니다.</p></div>
+    <div class="sec"><h3>6. 이용자의 권리</h3><p>언제든지 저장된 정보의 삭제를 요청하거나 직접 지울 수 있습니다. 문의와 관련한 정보의 열람, 정정, 삭제는 서비스 문의로 요청해 주세요.</p></div>
+    <div class="sec"><h3>7. 개인정보 보호책임자</h3><p>ZEROFOUND · <a href="#contact">서비스 문의</a>로 연락해 주세요.</p></div>
+    <div class="sec"><h3>8. 시행일</h3><p>이 방침은 2026년 11월 25일부터 적용됩니다.</p></div>
+  </section>
+  <section class="page" id="pg-contact" hidden aria-labelledby="ct-t">
+    <h2 id="ct-t">서비스 문의</h2>
+    <p class="lead">오류 신고, 기능 제안, 제휴 문의 모두 환영해요. 아래 내용을 채우면 보낼 문의글을 만들어 드려요.</p>
+    <form id="cform" novalidate>
+      <label class="f" for="c-type">문의 유형</label>
+      <select class="inp" id="c-type"><option>오류 신고</option><option>기능 제안</option><option>제휴·협업</option><option>기타</option></select>
+      <label class="f" for="c-mail">답변 받을 이메일</label>
+      <input class="inp" id="c-mail" type="email" autocomplete="email" placeholder="name@company.com">
+      <p class="err" id="e-mail" role="alert"></p>
+      <label class="f" for="c-msg">문의 내용</label>
+      <textarea class="inp" id="c-msg" rows="5" maxlength="1000" placeholder="어떤 화면에서 어떤 일이 있었는지 적어 주세요"></textarea>
+      <p class="err" id="e-msg" role="alert"></p>
+      <button class="go" type="submit">문의글 만들기</button>
+    </form>
+    <div class="cout" id="cout" hidden>
+      <h3>문의글이 준비됐어요</h3>
+      <p id="c-to"></p>
+      <pre id="c-text"></pre>
+      <button class="go alt" type="button" id="c-copy">문의글 복사</button>
+    </div>
+    <div class="sec"><h3>자주 묻는 질문</h3>
+      <p><b>점수가 서버에 저장되나요?</b><br>아니요. 결과는 화면에서만 보여 주고 저장하지 않아요.</p>
+      <p><b>사원증 이름을 지우고 싶어요</b><br><a href="#privacy">개인정보처리방침</a> 하단의 '내 기기에 저장된 정보 지우기'를 눌러 주세요.</p></div>
+  </section>
+  <footer><nav class="fl"><a href="#privacy" id="lk-privacy">개인정보처리방침</a><span aria-hidden="true">·</span><a href="#contact" id="lk-contact">서비스 문의</a></nav><p class="cp">© 2026 ZEROFOUND. All rights reserved.</p></footer>
+</div>
+<script>
+{
+const EV={
+open:{k:'메일 폭탄',who:'받은편지함',title:'월요일 아침, 메일 47통과 안 읽은 메시지 128개',body:'주말 동안 팀장님이 AI로 뽑은 "아이디어"를 12개나 보내놨다. 전부 "긴급"이다.',ch:[
+ {l:'AI에게 전부 요약시킨다',t:15,ai:1,q:8,s:{a:2},r:'3줄 요약 완성. 15분 만에 받은편지함 정리 끝.',alt:{p:.35,q:2,tr:-8,r:'3줄 요약 완성. 그런데 진짜 긴급 메일 하나를 AI가 "참고용"으로 분류했다. 팀장님이 두 번 물어봤다.'}},
+ {l:'한 통씩 정독한다',t:70,m:-10,q:12,s:{v:2},r:'맥락은 완벽히 파악했다. 고개를 드니 10시 10분.'},
+ {l:'커피 먼저. 인간은 카페인으로 부팅된다',t:20,m:12,s:{f:2},r:'멘탈이 돌아왔다. 메일은 여전히 47통이다.'},
+ {l:'팀장 아이디어 12개에 "좋네요!"만 답장',t:10,tr:6,q:-4,s:{c:1},r:'5분 뒤 답장: "그럼 3번부터 바로 해볼까?"'}]},
+report:{k:'보고서 전면 수정',who:'팀장 · 메신저',title:'AI가 써준 보고서, 팀장이 전면 수정하래요',body:'"전체적으로 다시 해와. 뭔가… AI 같아." 어디가 AI 같은지는 말해주지 않았다.',ch:[
+ {l:'프롬프트에 "사람처럼 써줘"를 추가한다',t:20,ai:1,q:5,tr:2,s:{a:2},r:'AI가 사람처럼 쓰겠다며 일부러 오타까지 넣어줬다. 팀장: "음, 아까보단 낫네."'},
+ {l:'처음부터 직접 다시 쓴다',t:120,m:-15,q:20,tr:10,s:{v:2},r:'진짜 내 보고서. 팀장: "이거지!" 대신 어깨가 돌처럼 굳었다.'},
+ {l:'"어느 부분이 AI 같으세요?" 구체적으로 묻는다',t:25,m:-4,q:12,tr:6,s:{c:2},r:'알고 보니 결론이 없어서였다. 결론 3줄 추가하고 통과.'},
+ {l:'토씨 하나 안 바꾸고 파일명만 "최종_진짜최종"',t:5,m:6,tr:10,r:'팀장: "훨씬 좋아졌네!" 같은 파일이다. 아무도 모르게 웃었다.',alt:{p:.55,tr:-18,m:-8,r:'팀장: "…파일명만 바꿨지? 수정 이력 다 보여."'}}]},
+ppt:{k:'5분짜리 PPT',who:'나 · 입방정',title:'"AI로 PPT 5분 만에 끝냈습니다!"라고 말해버렸다',body:'열어보니 슬라이드 40장. 숫자 절반은 출처가 없고, 3장은 경쟁사 로고가 들어가 있다. 검토만 2시간 각.',ch:[
+ {l:'2시간 동안 한 장씩 검토한다',t:120,m:-10,q:22,s:{v:3},r:'근거 없는 통계 7개 삭제. 40장이 18장이 됐는데 오히려 더 좋아졌다.'},
+ {l:'AI에게 AI가 만든 걸 검토시킨다',t:15,ai:1,q:6,s:{a:2},r:'AI가 스스로 숫자 3개를 고쳤다. 나머지는 믿기로 한다.',alt:{p:.4,q:-14,tr:-10,r:'AI: "모든 내용이 정확합니다." 발표 중에 경쟁사 로고를 본부장이 발견했다.'}},
+ {l:'핵심 5장만 남기고 나머지는 부록으로',t:40,q:10,tr:5,s:{v:1,c:1},r:'"간결해서 좋네" 칭찬 획득. 부록은 아무도 열지 않는다.'},
+ {l:'솔직하게 "검토는 2시간 걸려요"라고 말한다',t:10,m:5,tr:6,q:-4,s:{c:2},r:'팀장: "그럼 앞으론 검토 시간까지 일정에 넣자." 의외의 명언이 나왔다.'}]},
+auto:{k:'업무 자동화',who:'옆자리 동료',title:'AI가 내 업무를 자동화해버렸다',body:'매주 4시간 걸리던 정산을 AI 에이전트가 3분 만에 끝냈다. 옆자리 동료가 묻는다. "…너 이제 뭐 해?"',ch:[
+ {l:'자동화 방법을 문서로 만들어 팀에 공유한다',t:50,tr:15,q:5,s:{c:2,a:1},r:'팀에서 "자동화 담당"이라는 비공식 직함이 생겼다. 대체되는 대신 대체 불가가 됐다.'},
+ {l:'조용히 있는다. 남는 4시간은 내 것',t:10,m:15,tr:-4,s:{f:2},r:'평화로운 오후가 예약됐다. 들키지만 않으면.',alt:{p:.35,m:-8,tr:-20,r:'팀장이 실행 로그 대시보드를 봤다. "요즘 좀 한가하지?" 일이 두 개 더 왔다.'}},
+ {l:'AI가 못 잡는 예외 케이스를 찾는다',t:60,m:-5,q:15,s:{v:2},r:'예외 6건 발견. "역시 사람이 한 번 봐야 해"라는 말을 들었다.'},
+ {l:'남는 시간에 AI 활용 교육을 듣는다',t:40,m:-4,g:2,s:{a:2},r:'AI 크레딧 +2. 미래의 나에게 투자했다.'}]},
+double:{k:'목표 2배 선언',who:'주간회의',title:'팀장이 AI로 업무를 2배 늘리겠다고 선언했다',body:'"AI 도입했으니 이번 분기 목표는 2배로 간다!" 회의실에 박수 소리가 들린다. 정신 차려 보니 내 손도 박수를 치고 있다.',ch:[
+ {l:'"인원은 그대로인가요?" 손을 든다',t:20,m:4,tr:-10,s:{c:2},r:'정적 3초. 팀장: "설마 열정이 부족한 건 아니지?"',alt:{p:.5,tr:8,r:'팀장: "좋은 질문이야. 검토해볼게." 동료들이 눈빛으로 고마워한다.'}},
+ {l:'AI로 업무량 분석표를 만들어 현실 목표를 제안한다',t:45,ai:1,tr:12,q:10,s:{a:1,c:2},r:'숫자 앞에선 팀장도 약해진다. 목표 1.4배로 합의.'},
+ {l:'박수 친다. 일단 살아남는 게 먼저다',t:5,m:-12,tr:5,q:-5,r:'목표 2배 확정. 오늘 할 일도 왠지 늘어난 느낌이다.'},
+ {l:'회의 끝나고 조용히 채용 사이트를 연다',t:15,m:10,s:{f:1},r:'연봉 비교 그래프를 보며 마음의 평화를 얻었다. 창은 재빨리 닫았다.'}]},
+wrong:{k:'자신만만한 오답',who:'회의실 화면',title:'AI가 자신 있게 틀렸는데, 아무도 눈치채지 못했다',body:'AI 회의 요약에 "작년 매출 320% 성장"이라고 떠 있다. 실제로는 32%. 팀장은 이 숫자로 본부장 보고를 준비하고 있다.',ch:[
+ {l:'그 자리에서 바로 정정한다',t:10,m:-5,tr:8,q:15,s:{v:2,c:1},r:'"오, 잘 봤네." 본부장 앞에서 망신당할 뻔한 팀을 구했다.'},
+ {l:'회의 끝나고 팀장에게 따로 메시지',t:15,tr:15,q:12,s:{v:1,c:2},r:'팀장 체면도 지키고 숫자도 고쳤다. 신뢰도가 확 올랐다.'},
+ {l:'가만히 있는다. 내가 만든 요약도 아니니까',t:0,m:5,r:'다행히 아무 일도 없었다. …아직은.',alt:{p:.6,m:-15,tr:-22,q:-18,r:'본부장: "320%? 그럼 올해 목표는 1000%로 하지." 팀 전체가 나를 쳐다본다. 아무도 모르는데 왠지 그렇다.'}},
+ {l:'AI에게 "이 숫자 맞아?"라고 묻는다',t:5,ai:1,q:-4,s:{a:2},r:'AI: "네, 320%가 정확합니다." 자신감 하나는 정말 대단하다.',alt:{p:.5,q:10,s:{a:1,v:1},r:'AI: "죄송합니다. 32%가 맞습니다." 조용히 고쳐 넣었다.'}}]},
+meeting:{k:'회의 폭탄',who:'캘린더',title:'회의 초대 3개가 동시에 떴다',body:'"주간 싱크", "AI 활용 방안 브레인스토밍", 그리고 "회의를 줄이기 위한 회의".',ch:[
+ {l:'전부 참석한다',t:150,m:-20,tr:10,s:{c:2},r:'세 회의에서 같은 말을 세 번 들었다. 결론은 없었다.'},
+ {l:'AI 회의록 봇만 대신 보낸다',t:10,ai:1,q:-4,s:{a:2},r:'회의록 3개 도착. 결론: 다음 주에 다시 회의.',alt:{p:.3,tr:-15,r:'"발언하시겠어요?"라는 질문에 봇이 "네"라고 답했다. 침묵 속에서 내 이름이 불렸다.'}},
+ {l:'"회의를 줄이기 위한 회의"만 간다',t:50,m:-5,tr:5,s:{c:1,f:1},r:'회의를 줄이자는 결론이 났다. 후속 회의가 2개 잡혔다.'},
+ {l:'"집중 업무 중"으로 상태를 바꾸고 일한다',t:40,m:8,tr:-10,q:12,s:{f:2},r:'몰입 40분으로 오늘 업무를 반이나 끝냈다. 대신 "요즘 바쁜가 봐?" 소리를 들었다.'}]},
+lunch:{k:'점심시간',who:'팀장 · 자리로 찾아옴',title:'"오늘 다 같이 점심 먹지? AI 얘기 좀 하자."',body:'법카 점심이다. 하지만 1시간짜리 "내가 ChatGPT 써보니까 말이야" 강연이 함께 나온다.',ch:[
+ {l:'따라간다. 제육은 죄가 없다',t:70,m:-5,tr:10,s:{c:2},r:'팀장의 프롬프트 무용담을 들으며 제육을 먹었다. 맛은 있었다.'},
+ {l:'혼밥 후 낮잠 20분',t:60,m:20,tr:-5,s:{f:2},r:'인간 배터리 충전 완료. 오후가 두렵지 않다.'},
+ {l:'편의점 김밥 먹으며 일한다',t:20,m:-10,q:10,s:{v:1},r:'업무는 앞당겼고 김밥은 기억나지 않는다.'},
+ {l:'사내 AI 신기능 점심 세미나에 간다',t:60,m:-5,g:1,s:{a:2},r:'AI 크레딧 +1. 샌드위치는 맛이 없었다.'}]},
+final:{k:'퇴근 직전',who:'팀장 · 등 뒤에서',title:'"아, 잠깐. 이것만 AI로 금방 되지 않아?"',body:'퇴근 각을 재며 노트북 덮을 타이밍만 보고 있었는데. 팀장 손에 A4 한 장이 들려 있다.',ch:[
+ {l:'"네, 금방이죠" 하고 직접 한다',t:90,m:-15,tr:10,q:5,r:'"금방"은 1시간 30분이었다.'},
+ {l:'AI를 총동원해서 20분 컷',t:20,ai:2,tr:6,q:6,s:{a:2},r:'크레딧을 털어 20분 만에 끝냈다. 이게 바로 AI 시대의 칼퇴다.'},
+ {l:'"내일 오전까지 드려도 될까요?" 협상한다',t:5,m:10,s:{c:2},r:'"그래, 내일 줘." 퇴근 버튼이 반짝인다.',alt:{p:.3,t:60,m:-8,tr:-5,r:'"오늘 필요한데…" 결국 1시간 남았다.'}},
+ {l:'못 들은 척 노트북을 덮는다',t:0,m:15,tr:-15,s:{f:2},r:'엘리베이터 문 닫히는 소리가 이렇게 아름다웠던가.'}]}
+};
+const CH=[
+ {id:'base',n:'N년차 사원',an:'펭귄',d:'눈에 안 띄는 게 실력',st:{m:70,tr:50,q:30,ai:4},a:'penguin',wear:'#6f9a93',top:'crew',acc:['badge'],bg:'#dff1e8',ic:'folder'},
+ {id:'coffee',n:'반차 희망자',an:'코알라',d:'매일 아침 반차 고민 중',st:{m:64,tr:52,q:36,ai:3},a:'koala',wear:'#6b5546',top:'shirt',acc:['circles'],bg:'#efe6d6',ic:'half'},
+ {id:'lupin',n:'월급 루팡',an:'나무늘보',d:'최소 노력, 최대 생존',st:{m:88,tr:38,q:24,ai:4},a:'sloth',wear:'#7a6f8f',top:'crew',acc:['sleep'],bg:'#e6e3dc',ic:'coin'},
+ {id:'home',n:'노트북 유목민',an:'고슴도치',d:'노트북 하나면 어디든 사무실',st:{m:82,tr:44,q:32,ai:5},a:'hedgehog',wear:'#8a8f98',top:'hood',acc:['bedhead'],bg:'#dbe7f5',ic:'laptop'},
+ {id:'wheel',n:'프로 야근러',an:'햄스터',d:'성실함은 1등, 퇴근은 늘 꼴찌',st:{m:60,tr:55,q:38,ai:3},a:'hamster',wear:'#8c8f6a',top:'shirt',acc:['badge','circles'],bg:'#fde9b8',ic:'ramen'},
+ {id:'nunchi',n:'눈치 백단',an:'미어캣',d:'팀장 발소리만 들어도 안다',st:{m:66,tr:60,q:30,ai:4},a:'meerkat',wear:'#5a6e4f',top:'shirt',acc:[],bg:'#e1ecd0',ic:'binoc'},
+ {id:'quit',n:'이직 준비중',an:'너구리',d:'몸은 출근, 마음은 이미 퇴사',st:{m:80,tr:40,q:30,ai:5},a:'raccoon',wear:'#4a6b7c',top:'crew',acc:['bag'],bg:'#d9eef0',ic:'resume'},
+ {id:'ai',n:'AI 얼리어답터',an:'여우',d:'크레딧 부자, 신뢰는 글쎄',st:{m:70,tr:40,q:30,ai:7},a:'fox',wear:'#2f3a46',top:'hood',acc:['phones'],bg:'#f2e2cf',ic:'phone'}];
+const chOf=id=>CH.find(c=>c.id===id)||CH[0];
+const role=c=>c.n;
+const esc=s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
+let saved={};try{saved=JSON.parse(localStorage.getItem('osv-ai')||'{}')||{}}catch(e){}
+const LV=['AI는 아직 남의 얘기','가끔 물어보는 정도','업무에 꽤 쓰는 편','프롬프트 좀 짜는 고수','AI 없인 일 못 함'];
+const SN={a:'AI 활용력',v:'검증력',c:'소통력',f:'멘탈 관리'};
+const TIP={a:['AI 활용력 보강','반복 업무 하나만 AI에게 넘겨보세요. 아낀 30분이 그대로 퇴근 시간이 됩니다.'],
+v:['검증력 보강','AI 결과물의 숫자와 출처는 꼭 한 번 더 보세요. 자신 있는 오답이 가장 위험합니다.'],
+c:['소통력 보강','"어디를요?", "인원은요?" 같은 질문 하나가 야근 세 시간을 막습니다.'],
+f:['멘탈 관리 보강','회의 하나를 거절하고 몰입 시간을 캘린더에 먼저 박아두세요.']};
+const $=id=>document.getElementById(id);
+const cl=x=>Math.max(0,Math.min(100,x));
+const pad=n=>String(n).padStart(2,'0');
+const fm=t=>pad(Math.floor(t/60))+':'+pad(t%60);
+const fd=m=>{const h=Math.floor(m/60),r=m%60;return (h?h+'시간'+(r?' ':''):'')+(r||!h?r+'분':'')};
+const shuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+let S;
+function init(){
+  const mid=shuf(['report','ppt','auto','double','wrong','meeting']);
+  S={t:540,m:70,tr:50,q:30,ai:4,s:{a:0,v:0,c:0,f:0},i:0,log:[],seq:['open',...mid.slice(0,3),'lunch',...mid.slice(3),'final'],ph:'start',last:null,note:'',ch:chOf(saved.c).id,lv:3,nick:typeof saved.n==='string'?saved.n.slice(0,10):''};
+  render();
+}
+const who=()=>S.nick||'익명의 직장인';
+const O='#3a2b2b',K=`stroke="${O}" stroke-width="2.5"`;
+const ANI={
+ hamster:{fur:'#f6c27a',nose:'#ff8fa8',back:`<circle cx="33" cy="33" r="8" fill="#f6c27a" ${K}/><circle cx="33" cy="33" r="4" fill="#ffb3c4"/><circle cx="87" cy="33" r="8" fill="#f6c27a" ${K}/><circle cx="87" cy="33" r="4" fill="#ffb3c4"/>`,front:'<path d="M22 68 Q26 97 60 97 Q94 97 98 68 Q82 80 60 70 Q38 80 22 68Z" fill="#fff4e3"/><path d="M60 30 L60 46" stroke="#e9a75a" stroke-width="5" stroke-linecap="round"/>'},
+ penguin:{fur:'#3d4a5c',beak:1,back:'',front:'<path d="M60 40 Q44 30 33 46 Q22 70 40 88 Q50 96 60 96 Q70 96 80 88 Q98 70 87 46 Q76 30 60 40Z" fill="#fdfdfb"/>'},
+ sloth:{fur:'#b39a7e',nose:O,patch:1,back:'',front:`<ellipse cx="60" cy="68" rx="31" ry="25" fill="#efe0c8"/><ellipse cx="43" cy="65" rx="10" ry="6" transform="rotate(25 43 65)" fill="#5b4433"/><ellipse cx="77" cy="65" rx="10" ry="6" transform="rotate(-25 77 65)" fill="#5b4433"/><path d="M52 30 Q56 21 60 28 Q64 21 68 30" fill="none" stroke="${O}" stroke-width="2.5" stroke-linecap="round"/>`},
+ raccoon:{fur:'#9aa0a6',nose:O,patch:1,back:`<path d="M24 46 Q20 18 37 20 Q46 26 50 34Z" fill="#9aa0a6" ${K} stroke-linejoin="round"/><path d="M96 46 Q100 18 83 20 Q74 26 70 34Z" fill="#9aa0a6" ${K} stroke-linejoin="round"/><path d="M30 38 Q28 26 36 26 Q42 29 44 34Z M90 38 Q92 26 84 26 Q78 29 76 34Z" fill="${O}"/>`,front:`<path d="M40 50 Q50 44 58 52 M80 50 Q70 44 62 52" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/><path d="M22 60 Q40 50 60 60 Q80 50 98 60 Q94 75 77 73 Q66 71 60 75 Q54 71 43 73 Q26 75 22 60Z" fill="${O}"/><ellipse cx="60" cy="80" rx="14" ry="10" fill="#fff"/>`},
+ hedgehog:{fur:'#f1dcc0',nose:O,back:`<path d="M20 72 L12 60 L21 52 L13 40 L27 35 L24 22 L39 24 L42 11 L53 19 L60 6 L67 19 L78 11 L81 24 L96 22 L93 35 L107 40 L99 52 L108 60 L100 72Z" fill="#7a5a43" ${K} stroke-linejoin="round"/>`,front:'<ellipse cx="60" cy="77" rx="15" ry="10" fill="#fbeedd"/>'},
+ koala:{fur:'#a9adb3',nose:O,big:1,back:`<circle cx="24" cy="44" r="16" fill="#a9adb3" ${K}/><circle cx="24" cy="44" r="9" fill="#ece6ea"/><circle cx="96" cy="44" r="16" fill="#a9adb3" ${K}/><circle cx="96" cy="44" r="9" fill="#ece6ea"/>`,front:'<ellipse cx="60" cy="80" rx="20" ry="13" fill="#d6d8dc"/>'},
+ meerkat:{fur:'#d9b583',nose:O,patch:1,back:`<circle cx="22" cy="60" r="7" fill="#8a6a48" ${K}/><circle cx="98" cy="60" r="7" fill="#8a6a48" ${K}/>`,front:'<ellipse cx="60" cy="79" rx="17" ry="12" fill="#f1dfc0"/><ellipse cx="44" cy="63" rx="8" ry="10" fill="#6b4f35"/><ellipse cx="76" cy="63" rx="8" ry="10" fill="#6b4f35"/>'},
+ chick:{fur:'#ffd84d',beak:1,back:'',front:`<path d="M55 30 Q55 18 60 27 Q64 16 66 29" fill="none" stroke="${O}" stroke-width="2.5" stroke-linecap="round"/>`},
+ fox:{fur:'#f08a3e',nose:O,back:`<path d="M24 50 Q18 12 34 16 Q46 22 52 32Z" fill="#f08a3e" ${K} stroke-linejoin="round"/><path d="M96 50 Q102 12 86 16 Q74 22 68 32Z" fill="#f08a3e" ${K} stroke-linejoin="round"/><path d="M30 40 Q27 24 35 24 Q42 27 45 32Z M90 40 Q93 24 85 24 Q78 27 75 32Z" fill="#fff4e3"/>`,front:'<path d="M22 66 Q26 97 60 97 Q94 97 98 66 Q80 80 60 72 Q40 80 22 66Z" fill="#fff4e3"/>'},
+ cat:{fur:'#f5bd8c',nose:'#ff8fa8',back:`<path d="M24 46 Q20 14 34 16 Q44 20 52 32Z" fill="#f5bd8c" ${K} stroke-linejoin="round"/><path d="M96 46 Q100 14 86 16 Q76 20 68 32Z" fill="#f5bd8c" ${K} stroke-linejoin="round"/><path d="M30 38 Q28 22 35 23 Q41 26 45 32Z M90 38 Q92 22 85 23 Q79 26 75 32Z" fill="#ffb3c4"/>`,front:`<path d="M54 31 L56 38 M60 29 L60 37 M66 31 L64 38" stroke="#d98b52" stroke-width="2.5" stroke-linecap="round"/><path d="M20 72 L31 74 M20 78 L31 78 M100 72 L89 74 M100 78 L89 78" stroke="${O}" stroke-width="1.5" stroke-linecap="round"/>`},
+ dog:{fur:'#f2a65e',nose:O,back:`<path d="M26 46 Q22 18 38 20 Q46 26 50 34Z" fill="#f2a65e" ${K} stroke-linejoin="round"/><path d="M94 46 Q98 18 82 20 Q74 26 70 34Z" fill="#f2a65e" ${K} stroke-linejoin="round"/><path d="M32 38 Q30 26 38 26 Q43 29 45 34Z M88 38 Q90 26 82 26 Q77 29 75 34Z" fill="#fff4e3"/>`,front:'<path d="M26 68 Q30 96 60 96 Q90 96 94 68 Q78 80 60 74 Q42 80 26 68Z" fill="#fff4e3"/><ellipse cx="44" cy="50" rx="4" ry="2.6" fill="#fff4e3"/><ellipse cx="76" cy="50" rx="4" ry="2.6" fill="#fff4e3"/>'},
+ bear:{fur:'#d1a074',nose:O,back:`<circle cx="28" cy="34" r="11" fill="#d1a074" ${K}/><circle cx="28" cy="34" r="6" fill="#f3d3b4"/><circle cx="92" cy="34" r="11" fill="#d1a074" ${K}/><circle cx="92" cy="34" r="6" fill="#f3d3b4"/>`,front:'<ellipse cx="60" cy="76" rx="16" ry="11" fill="#f3d3b4"/>'},
+ panda:{fur:'#ffffff',nose:O,patch:1,back:`<circle cx="28" cy="32" r="11" fill="${O}"/><circle cx="92" cy="32" r="11" fill="${O}"/>`,front:`<ellipse cx="43" cy="64" rx="10" ry="12.5" transform="rotate(25 43 64)" fill="${O}"/><ellipse cx="77" cy="64" rx="10" ry="12.5" transform="rotate(-25 77 64)" fill="${O}"/>`}};
+const ACC={
+ badge:`<path d="M50 102 L60 114 L70 102" fill="none" stroke="#00a86b" stroke-width="2.5"/><rect x="54" y="112" width="12" height="10" rx="2" fill="#fff" stroke="${O}" stroke-width="1.5"/>`,
+ pen:`<g transform="rotate(35 94 42)"><rect x="91" y="26" width="6" height="24" rx="2" fill="#ffd23f" stroke="${O}" stroke-width="1.5"/><path d="M91 50 L94 56 L97 50Z" fill="${O}"/></g>`,
+ glasses:`<circle cx="44" cy="63" r="10.5" fill="rgba(255,255,255,.3)" stroke="${O}" stroke-width="2.2"/><circle cx="76" cy="63" r="10.5" fill="rgba(255,255,255,.3)" stroke="${O}" stroke-width="2.2"/><path d="M54.5 62 Q60 59 65.5 62" fill="none" stroke="${O}" stroke-width="2.2"/>`,
+ headset:`<path d="M21 62 Q19 18 60 18 Q101 18 99 62" fill="none" stroke="${O}" stroke-width="4"/><rect x="13" y="54" width="11" height="18" rx="5" fill="#7fd1ae" stroke="${O}" stroke-width="2"/><rect x="96" y="54" width="11" height="18" rx="5" fill="#7fd1ae" stroke="${O}" stroke-width="2"/><path d="M18 72 Q20 88 38 88" fill="none" stroke="${O}" stroke-width="2.5"/><circle cx="40" cy="88" r="3.5" fill="${O}"/>`,
+ visor:`<path d="M21 52 Q60 30 99 52" fill="none" stroke="#00a86b" stroke-width="5"/><path d="M28 47 Q60 24 92 47 Q60 39 28 47Z" fill="#00a86b" stroke="${O}" stroke-width="2" stroke-linejoin="round"/>`,
+ phones:`<path d="M21 62 Q19 18 60 18 Q101 18 99 62" fill="none" stroke="${O}" stroke-width="5"/><rect x="12" y="52" width="13" height="22" rx="5" fill="#4fb7ff" stroke="${O}" stroke-width="2"/><rect x="95" y="52" width="13" height="22" rx="5" fill="#4fb7ff" stroke="${O}" stroke-width="2"/>`
+,
+ circles:'<path d="M38 72 Q44 75 50 72 M70 72 Q76 75 82 72" fill="none" stroke="#8a7aa8" stroke-width="2" stroke-linecap="round"/>',
+ sleep:`<path d="M21 44 Q60 30 99 44" fill="none" stroke="#6d84b5" stroke-width="3"/><rect x="38" y="33" width="44" height="13" rx="6.5" fill="#8fb7e8" stroke="${O}" stroke-width="2"/><path d="M52 39.5 Q55 42 58 39.5 M62 39.5 Q65 42 68 39.5" fill="none" stroke="${O}" stroke-width="1.6" stroke-linecap="round"/>`,
+ bag:'<path d="M41 104 L45 128 M79 104 L75 128" stroke="#e0705a" stroke-width="5" stroke-linecap="round"/>'
+,
+ bedhead:`<path d="M48 22 Q52 8 58 18 Q62 4 66 18 Q72 10 72 24" fill="#7a5a43" stroke="${O}" stroke-width="2" stroke-linejoin="round"/>`,
+ mug2:`<rect x="12" y="104" width="16" height="18" rx="3" fill="#fff" stroke="${O}" stroke-width="2"/><path d="M12 108 q-6 0 -6 5 q0 5 6 5" fill="none" stroke="${O}" stroke-width="2"/><circle cx="27" cy="114" r="5" fill="#a9adb3" stroke="${O}" stroke-width="1.5"/><path d="M17 99 q-3 -4 0 -8 M23 99 q-3 -4 0 -8" fill="none" stroke="${O}" stroke-width="1.5" stroke-linecap="round"/>`,
+ alert:`<rect x="101" y="12" width="7" height="16" rx="3.5" fill="#ffd23f" stroke="${O}" stroke-width="2"/><circle cx="104.5" cy="34" r="3.5" fill="#ffd23f" stroke="${O}" stroke-width="2"/>`
+};
+const NECK={crew:`<path d="M49 101 Q60 109 71 101" fill="none" stroke="${O}" stroke-width="2"/>`,
+ shirt:`<path d="M49 100 L56 110 L60 103 L64 110 L71 100" fill="#fff" stroke="${O}" stroke-width="1.6" stroke-linejoin="round"/>`,
+ hood:`<path d="M38 103 Q60 114 82 103" fill="none" stroke="${O}" stroke-width="2"/><path d="M53 108 L53 121 M67 108 L67 121" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>`};
+const ICON={
+ folder:`<path d="M89 104 H96.5 L99 106.8 H111 V122 H89Z" fill="#ffd27a" stroke="${O}" stroke-width="1.8" stroke-linejoin="round"/><path d="M89 109.5 H111" stroke="${O}" stroke-width="1.4"/>`,
+ half:`<rect x="89" y="103" width="21" height="19" rx="2.5" fill="#fff" stroke="${O}" stroke-width="1.8"/><path d="M89.9 104 H109.1 V108 H89.9Z" fill="#e0705a"/><path d="M89 108 H110" stroke="${O}" stroke-width="1.6"/><path d="M101 110.5 A4.5 4.5 0 0 0 101 119.5Z" fill="${O}"/><circle cx="101" cy="115" r="4.5" fill="none" stroke="${O}" stroke-width="1.5"/>`,
+ coin:`<circle cx="101" cy="112" r="9.5" fill="#ffd23f" stroke="${O}" stroke-width="1.8"/><path d="M96.5 107.5 L98.4 116 L101 109.5 L103.6 116 L105.5 107.5 M95.8 112 H106.2" fill="none" stroke="${O}" stroke-width="1.5" stroke-linejoin="round"/>`,
+ laptop:`<rect x="89" y="101" width="22" height="14" rx="1.5" fill="#8fb7e8" stroke="${O}" stroke-width="1.8"/><path d="M86 117 H114 L111.5 121.5 H88.5Z" fill="#cfd6de" stroke="${O}" stroke-width="1.8" stroke-linejoin="round"/>`,
+ ramen:`<path d="M99 104 L107 93 M102 104 L111 95" stroke="${O}" stroke-width="1.8" stroke-linecap="round"/><path d="M88 104 H112 L109 123 H91Z" fill="#fff" stroke="${O}" stroke-width="1.8" stroke-linejoin="round"/><path d="M89.3 110 H110.7 L110 114 H90Z" fill="#e0705a"/><path d="M93 99 q-2 -3 0 -6 M97 99 q-2 -3 0 -6" fill="none" stroke="${O}" stroke-width="1.3" stroke-linecap="round"/>`,
+ binoc:`<rect x="97" y="106" width="7" height="6" fill="#3f4a63" stroke="${O}" stroke-width="1.6"/><circle cx="94" cy="114" r="6.5" fill="#3f4a63" stroke="${O}" stroke-width="1.8"/><circle cx="107" cy="114" r="6.5" fill="#3f4a63" stroke="${O}" stroke-width="1.8"/><circle cx="94" cy="114" r="3.5" fill="#8fd3ff"/><circle cx="107" cy="114" r="3.5" fill="#8fd3ff"/><circle cx="95.2" cy="112.8" r="1.1" fill="#fff"/><circle cx="108.2" cy="112.8" r="1.1" fill="#fff"/>`,
+ resume:`<rect x="89" y="101" width="20" height="23" rx="1.5" fill="#fff" stroke="${O}" stroke-width="1.8"/><circle cx="94.5" cy="107" r="2.6" fill="#8fb7e8" stroke="${O}" stroke-width="1.2"/><path d="M99 105.5 H105.5 M99 108.5 H104 M92.5 113.5 H105.5 M92.5 117 H105.5 M92.5 120.5 H101" stroke="${O}" stroke-width="1.3" stroke-linecap="round"/>`,
+ phone:`<rect x="91" y="100" width="17" height="25" rx="3.5" fill="#2f3a46" stroke="${O}" stroke-width="1.8"/><rect x="93.5" y="103.5" width="12" height="17" rx="1.5" fill="#8fd3ff"/><path d="M99.5 106 Q100.3 111.2 104.5 112 Q100.3 112.8 99.5 118 Q98.7 112.8 94.5 112 Q98.7 111.2 99.5 106Z" fill="#ffd23f" stroke="${O}" stroke-width="1"/>`};
+function face(m,cid){
+  const C=chOf(cid||S.ch),A=ANI[C.a],ec=A.patch?'#fff':O;
+  let eyes;
+  if(m<=30)eyes=`<path d="M39 59 L48 63.5 L39 68 M81 59 L72 63.5 L81 68" fill="none" stroke="${ec}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;
+  else eyes=`<ellipse cx="44" cy="63" rx="4.5" ry="5.5" fill="${O}" ${A.patch?'stroke="#fff" stroke-width="1.5"':''}/><ellipse cx="76" cy="63" rx="4.5" ry="5.5" fill="${O}" ${A.patch?'stroke="#fff" stroke-width="1.5"':''}/><circle cx="45.6" cy="61" r="1.6" fill="#fff"/><circle cx="77.6" cy="61" r="1.6" fill="#fff"/>`;
+  const mouth=m>60?'M54 75 Q57 79.5 60 75 Q63 79.5 66 75':m>30?'M56 77.5 Q60 79 64 77.5':'M54.5 79 Q57 76 60 79 Q63 82 65.5 79';
+  const sweat=m<=45?`<path d="M98 42 q6 9 0 13 q-6 -4 0 -13z" fill="#8fd3ff" stroke="${O}" stroke-width="1.5"/>`:'';
+  const acc=k=>(C.acc||[]).includes(k)?ACC[k]:'';
+  return `<svg viewBox="0 0 120 132" role="img" aria-label="${C.an} 캐릭터, 멘탈 ${m}">
+  <ellipse cx="60" cy="128" rx="36" ry="4" fill="rgba(0,0,0,.12)"/>
+  <path d="M30 128 Q30 100 60 100 Q90 100 90 128Z" fill="${C.wear}" stroke="${O}" stroke-width="2"/>
+  ${NECK[C.top]}
+  ${acc('bag')}${acc('badge')}${A.back}
+  <ellipse cx="60" cy="62" rx="40" ry="35" fill="${A.fur}" ${K}/>
+  ${A.front}${acc('visor')}${acc('sleep')}${acc('pen')}${acc('bedhead')}
+  ${eyes}
+  <ellipse cx="34" cy="75" rx="5" ry="3" fill="#ff9f8f" opacity="${m>60?.45:.2}"/><ellipse cx="86" cy="75" rx="5" ry="3" fill="#ff9f8f" opacity="${m>60?.45:.2}"/>
+  ${A.beak?`<path d="M53 71 Q60 67 67 71 Q60 ${m<=30?80:77} 53 71Z" fill="#ff9f2e" stroke="${O}" stroke-width="1.8" stroke-linejoin="round"/>`:`<ellipse cx="60" cy="${A.big?69:71}" rx="${A.big?7:A.nose===O?4.5:3.2}" ry="${A.big?8:A.nose===O?3:2.3}" fill="${A.nose}"/>
+  <path transform="translate(0 ${A.big?7:0})" d="${mouth}" fill="none" stroke="${O}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`}
+  ${acc('circles')}${acc('glasses')}${acc('headset')}${acc('phones')}${sweat}
+  ${ICON[C.ic]||''}<circle cx="90" cy="115" r="5.5" fill="${A.fur}" stroke="${O}" stroke-width="1.6"/>
+  </svg>`;
+}
+function hud(){
+  const over=S.t-1080;
+  $('ctime').textContent=fm(S.t);
+  $('cday').textContent=over>0?`야근 ${fd(over)} 째`:`월요일 · 퇴근까지 ${fd(1080-S.t)}`;
+  $('clock').classList.toggle('ot',over>0);
+  $('cbar').style.width=Math.min(100,(S.t-540)/540*100)+'%';
+  $('face').style.setProperty('--cb',chOf(S.ch).bg);
+  $('face').innerHTML=face(S.m)+(S.ph==='start'?'':`<span class="nm">${esc(who())} · ${role(chOf(S.ch))}</span>`);
+  $('meters').innerHTML=[['멘탈',S.m],['상사 신뢰',S.tr],['업무 완성도',S.q]].map(([n,v])=>`<div class="meter"><div><span>${n}</span><b class="num">${v}</b></div><div class="bar"><i class="${v<=25?'low':''}" style="width:${v}%"></i></div></div>`).join('');
+  $('pips').innerHTML=Array.from({length:Math.max(6,S.ai)},(_,i)=>`<i class="${i<S.ai?'':'off'}"></i>`).join('');
+  $('step').textContent=S.ph==='start'?'출근 전':S.ph==='end'?'퇴근':`사건 ${S.i+1} / ${S.seq.length}`;
+}
+function openPick(){
+  Object.assign(S,chOf(S.ch).st);hud();
+  const ret=document.activeElement;
+  const ov=document.createElement('div');ov.className='ov';
+  ov.innerHTML=`<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dt"><div class="dh"><b id="dt">사원증을 발급합니다</b><button class="x" id="px" aria-label="닫기">&times;</button></div>
+  <div class="db"><div class="chars" role="group" aria-label="캐릭터">${CH.map(c=>`<button class="chr" data-c="${c.id}" aria-pressed="${c.id===S.ch}" style="--cb:${c.bg}">${face(70,c.id)}<span>${c.n}</span></button>`).join('')}</div>
+  <p class="cinfo" id="ci"></p>
+  <div class="lvbox"><div class="lvrow"><label class="f" for="lvr">AI, 얼마나 쓰세요?</label><span class="lvt" id="lvt"></span></div>
+  <input type="range" id="lvr" min="1" max="5" step="1" value="${S.lv}" aria-valuetext="">
+  <div class="ticks num" aria-hidden="true">${[1,2,3,4,5].map(i=>`<span data-t="${i}">Lv.${i}</span>`).join('')}</div></div>
+  <label class="f" for="nick">사원증 이름</label><input class="inp" id="nick" maxlength="10" autocomplete="off" placeholder="예: 칼퇴요정" value="${esc(S.nick)}">
+  <button class="go" id="go"></button></div></div>`;
+  document.body.appendChild(ov);
+  const info=()=>{const c=chOf(S.ch);$('ci').innerHTML=`<span>${c.d}</span><small class="num">멘탈 ${c.st.m} · 신뢰 ${c.st.tr} · AI ${c.st.ai}</small>`};info();
+  const lr=$('lvr');
+  const lvUpd=()=>{S.lv=+lr.value;const t=`Lv.${S.lv} ${LV[S.lv-1]}`;$('lvt').textContent=LV[S.lv-1];ov.querySelectorAll('.ticks span').forEach(x=>x.classList.toggle('on',+x.dataset.t===S.lv));lr.setAttribute('aria-valuetext',t);lr.style.setProperty('--p',((S.lv-1)/4*100)+'%');$('go').textContent='출근시작'};lvUpd();
+  lr.oninput=lvUpd;
+  const close=()=>{ov.remove();document.removeEventListener('keydown',key);if(ret&&ret.focus)ret.focus()};
+  const key=e=>{if(e.key==='Escape')close()};
+  document.addEventListener('keydown',key);
+  ov.onclick=e=>{if(e.target===ov)close()};
+  $('px').onclick=close;
+  ov.querySelectorAll('.chr').forEach(b=>b.onclick=()=>{S.ch=b.dataset.c;Object.assign(S,chOf(S.ch).st);ov.querySelectorAll('.chr').forEach(x=>x.setAttribute('aria-pressed',x===b));info();hud()});
+  $('go').onclick=()=>{
+    S.nick=$('nick').value.trim().slice(0,10);
+    try{localStorage.setItem('osv-ai',JSON.stringify({n:S.nick,c:S.ch}))}catch(e){}
+    saved={n:S.nick,c:S.ch};
+    ov.remove();document.removeEventListener('keydown',key);
+    S.ph='event';prep();render();window.scrollTo({top:0,behavior:'smooth'});
+  };
+  ov.querySelector('.chr[aria-pressed=true]').focus();
+}
+function render(){
+  hud();
+  const M=$('main');
+  if(S.ph==='start'){
+    M.innerHTML=`<div class="card"><h2>AI가 일을 쏟아붓는 월요일, 18시까지 살아남아라</h2>
+    <p class="body">아홉 개의 사건이 기다린다. 선택지마다 걸리는 시간과 AI 크레딧만 보인다. 멘탈, 신뢰, 완성도가 어떻게 변할지는 고른 뒤에 알 수 있다.</p>
+    <ul class="rules"><li>18:00을 넘기면 야근. 넘긴 시간만큼 점수가 깎인다</li><li>AI 크레딧은 캐릭터마다 다르다. 빠르지만 가끔 자신 있게 틀린다</li><li>멘탈이 0이 되면 그 자리에서 번아웃</li></ul>
+    <button class="go" id="start">출근하기</button></div>`;
+    $('start').onclick=openPick;
+  } else if(S.ph==='event'){
+    const ev=EV[S.seq[S.i]];
+    M.innerHTML=`<div class="card"><div class="from"><b>${ev.who}</b><span class="num">${fm(S.t)}</span></div>
+    <h2>${ev.title}</h2><p class="body">${ev.body}</p>${S.note?`<p class="note">${S.note}</p>`:''}
+    <div class="ch">${ev.ch.map((c,k)=>{const no=(c.ai||0)>S.ai;return `<button class="opt" data-k="${k}" ${no?'disabled':''}><span>${c.l}${no?' · 크레딧 부족':''}</span><span class="tags">${c.t?`<span class="tag num">+${fd(c.t)}</span>`:'<span class="tag">즉시</span>'}${c.ai?`<span class="tag ai num">AI ${c.ai}</span>`:''}</span></button>`}).join('')}</div></div>`;
+    M.querySelectorAll('.opt').forEach(b=>b.onclick=()=>choose(+b.dataset.k));
+  } else if(S.ph==='result'){
+    const L=S.last;
+    M.innerHTML=`<div class="card"><div class="from"><b>결과</b><span>${L.l}</span></div>
+    <div class="res" style="margin-top:10px"><p>${L.r}</p><div class="deltas">${L.d.map(([n,v,good])=>`<span class="d num ${good?'up':''}">${n} ${v}</span>`).join('')}</div></div>
+    <button class="go" id="next">${S.m<=0?'번아웃… 결과 보기':S.i+1>=S.seq.length?'퇴근하기':'다음 사건'}</button></div>`;
+    $('next').onclick=next;$('next').focus({preventScroll:true});
+  } else end(M);
+}
+function prep(){
+  S.note='';
+  const k=S.seq[S.i];
+  if(S.i>0)S.t+=15;
+  if(k==='lunch'&&S.t<720){S.t=720;S.note='오전 업무를 정리하다 보니 어느새 점심시간이다.'}
+  if(k==='final'&&S.t<1050){const b=Math.round((1050-S.t)/5);S.q=cl(S.q+b);S.t=1050;S.note=`일을 빨리 끝낸 덕에 남은 시간 동안 밀린 업무를 처리했다. 업무 완성도 +${b}`}
+}
+function choose(k){
+  const ev=EV[S.seq[S.i]],c=ev.ch[k];
+  if((c.ai||0)>S.ai)return;
+  let o=c;if(c.alt&&Math.random()<c.alt.p)o={...c,...c.alt};
+  const b={t:S.t,m:S.m,tr:S.tr,q:S.q,ai:S.ai};
+  S.log.push([fm(S.t),ev.k,c.l]);
+  S.ai=S.ai-(c.ai||0)+(o.g||0);S.t+=o.t||0;
+  S.m=cl(S.m+(o.m||0));S.tr=cl(S.tr+(o.tr||0));S.q=cl(S.q+(o.q||0));
+  for(const [s,v] of Object.entries(o.s||{}))S.s[s]+=v;
+  const d=[];
+  if(S.t>b.t)d.push(['시간','+'+fd(S.t-b.t),false]);
+  [['멘탈','m'],['신뢰','tr'],['완성도','q'],['AI','ai']].forEach(([n,x])=>{const v=S[x]-b[x];if(v)d.push([n,(v>0?'+':'')+v,v>0])});
+  if(!d.length)d.push(['변화 없음','',false]);
+  S.last={l:c.l,r:o.r,d};S.ph='result';render();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function next(){
+  if(S.m<=0||S.i+1>=S.seq.length){S.ph='end';render();return}
+  S.i++;S.ph='event';prep();render();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function result(){
+  const over=Math.max(0,S.t-1080),burn=S.m<=0;
+  let sc=Math.round(S.q*3.5+S.tr*3+S.m*2.5+S.ai*8+(over?0:100)-over*3);
+  if(burn)sc=Math.round(sc*.5);
+  sc=Math.max(0,Math.min(1000,sc));
+  const gr=burn?'F':sc>=880?'S':sc>=740?'A':sc>=600?'B':sc>=420?'C':'D';
+  const st=S.s,keys=Object.keys(st),top=keys.reduce((a,b)=>st[b]>st[a]?b:a,'a');
+  let ti;
+  if(burn)ti=['월요병 말기 환자','주말까지 남은 시간: 4일 6시간. 일단 누워야 한다.'];
+  else if(st.a-st.v>=3)ti=['AI 맹신러','"GPT가 그렇다던데요?"가 입버릇. 자신감은 AI를 닮았다.'];
+  else if(keys.every(x=>st[x]<=2))ti=['자리 지킴이','특별히 한 건 없지만, 아무튼 하루를 버텼다.'];
+  else ti={a:['프롬프트 연금술사','AI를 부리되, AI에게 부려지지 않는 사람.'],v:['인간 팩트체커','AI가 틀리면 회사에서 제일 먼저 알아채는 사람.'],c:['회의실 생존왕','말 한마디로 업무 2배를 1.4배로 깎는 사람.'],f:['칼퇴 장인','18:00:00, 노트북은 이미 닫혀 있다.']}[top];
+  const status=burn?'멘탈 방전으로 하루를 버티지 못했습니다':over?`야근 ${fd(over)} 끝에 간신히 생존했습니다`:'야근 없이 생존에 성공했습니다';
+  const low=keys.slice().sort((a,b)=>st[a]-st[b]);
+  const tips=[];
+  if(burn)tips.push(['멘탈 관리 긴급','멘탈은 회복 수단이 적습니다. 커피, 낮잠, 거절 하나씩은 꼭 챙기세요.']);
+  if(over)tips.push(['야근 방지','"AI로 5분"에는 검토 시간이 빠져 있습니다. 검토 시간을 먼저 일정에 넣으세요.']);
+  low.forEach(x=>{if(tips.length<3&&!(burn&&x==='f'))tips.push(TIP[x])});
+  const pa=Math.min(100,st.a/8*100),pv=Math.min(100,st.v/8*100),ax=pa*.6+pv*.4;
+  const real=ax>=80?5:ax>=60?4:ax>=40?3:ax>=20?2:1;
+  const gap=S.lv-real;
+  const vd=!S.lv?null:gap>=2?['자신감만큼은 만렙','AI를 쓰는 것과 잘 쓰는 건 다릅니다.']:gap===1?['살짝 높게 봤어요','한 끗 차이. 내일은 맞힐 수 있어요.']:gap===0?['자기 객관화 완벽','스스로를 정확히 아는 것도 생존 능력입니다.']:gap===-1?['겸손한 실력자','생각보다 조금 더 잘 버티는 사람.']:['숨은 AI 고수','본인만 모르는 AI 실력자.'];
+  return {sc,gr,ti,status,over,burn,tips,real,vd};
+}
+function end(M){
+  const R=result();
+  M.innerHTML=`<div class="card"><div class="score ${R.burn||R.over?'bad':''}"><small>${esc(who())} ${role(chOf(S.ch))}의 오늘 생존 점수</small><b class="num">${R.sc}<span>점</span></b><p>${R.status}</p></div>
+  <div class="meme"><div class="g">${R.gr}</div><div><h3>${R.ti[0]}</h3><p>${R.ti[1]}</p></div></div>
+  ${R.vd?`<h4>내 AI 레벨, 생각 vs 현실</h4><div class="vs"><div><small>내가 생각한 AI 레벨</small><b class="num">Lv.${S.lv}</b><span>${LV[S.lv-1]}</span></div><i>vs</i><div class="real"><small>오늘 보여준 AI 레벨</small><b class="num">Lv.${R.real}</b><span>${LV[R.real-1]}</span></div></div><p class="verdict"><b>${R.vd[0]}</b> · ${R.vd[1]}</p><p class="lvh">실제 레벨은 오늘의 AI 활용력과 검증력으로 계산했어요.</p>`:''}
+  <h4>능력 평가</h4>${Object.keys(SN).map(x=>{const p=Math.min(100,Math.round(S.s[x]/8*100));return `<div class="stat"><span>${SN[x]}</span><div class="bar"><i style="width:${p}%"></i></div><span class="num">${p}</span></div>`}).join('')}
+  <h4>내일의 생존 전략</h4><ul class="tips">${R.tips.map(([h,t])=>`<li><b>${h}</b>${t}</li>`).join('')}</ul>
+  <h4>오늘의 기록 · 퇴근 ${fm(S.t)}</h4><ul class="log">${S.log.map(([t,k,l])=>`<li><span class="num">${t}</span><span>${k} — ${l}</span></li>`).join('')}</ul>
+  <div class="btns"><button class="go alt" id="copy">결과 복사</button><button class="go" id="again">다시 출근하기</button></div></div>`;
+  $('again').onclick=()=>{init();window.scrollTo({top:0});openPick()};
+  $('copy').onclick=async()=>{const txt=`[오피스 생존기 : AI편] ${who()}(${role(chOf(S.ch))})의 오늘 생존 점수 ${R.sc}점 (${R.gr}) · ${R.status} · 칭호: ${R.ti[0]}${R.vd?` · AI 레벨 내 생각 Lv.${S.lv} → 실제 Lv.${R.real} (${R.vd[0]})`:''}`;
+    try{await navigator.clipboard.writeText(txt);$('copy').textContent='복사됨'}catch(e){$('copy').textContent='복사 실패'}};
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+const CONTACT_EMAIL='';
+const GAME=['.hud','.meters','.ai','#main'].map(q=>document.querySelector(q));
+function route(){
+  const h=location.hash.slice(1),pg=h==='privacy'||h==='contact'?h:'';
+  GAME.forEach(el=>el.hidden=!!pg);
+  ['privacy','contact'].forEach(k=>$('pg-'+k).hidden=k!==pg);
+  $('step').hidden=!!pg;$('back').hidden=!pg;
+  document.querySelectorAll('footer a').forEach(a=>a.setAttribute('aria-current',a.getAttribute('href')==='#'+pg?'page':'false'));
+  if(pg)window.scrollTo({top:0});
+}
+window.addEventListener('hashchange',route);
+$('back').onclick=e=>{e.preventDefault();history.pushState('',document.title,location.pathname+location.search);route()};
+$('wipe').onclick=()=>{try{localStorage.removeItem('osv-ai')}catch(e){}saved={};S.nick='';S.ch=CH[0].id;$('wipe-ok').textContent='이 기기에 저장된 사원증 이름과 캐릭터를 지웠어요.'};
+$('cform').addEventListener('submit',e=>{
+  e.preventDefault();
+  const mail=$('c-mail').value.trim(),msg=$('c-msg').value.trim();
+  const okMail=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail);
+  $('e-mail').textContent=okMail?'':'답변 받을 이메일을 정확히 적어 주세요.';
+  $('e-msg').textContent=msg.length>=5?'':'문의 내용을 5자 이상 적어 주세요.';
+  if(!okMail||msg.length<5)return;
+  $('c-text').textContent=`[오피스 생존기 : AI편] ${$('c-type').value}\n답변 받을 이메일: ${mail}\n\n${msg}`;
+  $('c-to').textContent=CONTACT_EMAIL?`아래 문의글을 복사해서 ${CONTACT_EMAIL} 로 보내 주세요.`:'문의 메일 주소는 곧 안내될 예정이에요. 아래 문의글을 복사해 두세요.';
+  $('cout').hidden=false;$('c-copy').textContent='문의글 복사';$('cout').scrollIntoView({behavior:'smooth',block:'start'});
+});
+['c-mail','c-msg'].forEach(id=>$(id).addEventListener('input',()=>$('e-'+id.slice(2)).textContent=''));
+$('c-copy').onclick=async()=>{try{await navigator.clipboard.writeText($('c-text').textContent);$('c-copy').textContent='복사됨'}catch(e){$('c-copy').textContent='복사 실패. 직접 선택해 복사해 주세요'}};
+route();
+init();
+}
+</script>
+</body>
+</html>
